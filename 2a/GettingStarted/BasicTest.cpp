@@ -16,7 +16,8 @@ typedef struct {
 	float x, y;
 } FloatType2D;
 
-const int nvertices = 4;
+const int nvertices = 18;
+//const int starvertices = 10;
 
 
 // Create a NULL-terminated string by reading the provided file
@@ -80,7 +81,6 @@ InitShader(const char* vShaderFileName, const char* fShaderFileName)
 	// error check
 	if ( vs_text == NULL ) {
 		printf("Failed to read from vertex shader file %s\n", vShaderFileName);
-		//std::cin.get();
 		exit( 1 );
 	} else if (DEBUG_ON) {
 		printf("read shader code:\n%s\n", vs_text);
@@ -163,8 +163,25 @@ init( void )
 	vertices[1].x =  0.9;  vertices[1].y = -0.6;
 	vertices[2].x =  0.9;  vertices[2].y =  0.6;
 	vertices[3].x = -0.9;  vertices[3].y =  0.9;
+	//create the star
+	vertices[4].x = 0.0;   vertices[4].y = 0.3;
+	vertices[5].x = 0.1;   vertices[5].y = 0.1;
+	vertices[6].x = 0.27;  vertices[6].y = 0.1;
+	vertices[7].x = 0.11;   vertices[7].y = -0.1;
+	vertices[8].x = 0.15;  vertices[8].y = -0.33;
+	vertices[9].x = 0;     vertices[9].y = -0.15;
+	vertices[10].x = -0.15; vertices[10].y = -0.33;
+	vertices[11].x = -0.11;  vertices[11].y = -0.1;
+	vertices[12].x = -0.27; vertices[12].y = 0.1;
+	vertices[13].x = -0.1;  vertices[13].y = 0.1;
+	//poly
+	vertices[14].x = -0.8; vertices[14].y = -0.8;
+	vertices[15].x = -0.8; vertices[15].y = -0.4;
+	vertices[16].x = -0.4; vertices[16].y = -0.8;
+	vertices[17].x = -.65; vertices[17].y = -0.3;
 	
-    // Create a vertex array object
+	
+	// Create a vertex array object
     glGenVertexArrays( 1, vao );
     glBindVertexArray( vao[0] );
     
@@ -181,7 +198,7 @@ init( void )
     glEnableVertexAttribArray( location );
     glVertexAttribPointer( location, 2, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0) );
 	
-    glClearColor( 1.0, 1.0, 1.0, 1.0 ); // white background
+    glClearColor( 1, 1, 1, 1 );
 }
 
 //----------------------------------------------------------------------------
@@ -190,7 +207,9 @@ void
 display_callback( void )
 {
 	glClear( GL_COLOR_BUFFER_BIT );     // fill the window with the background color
-	glDrawArrays( GL_POINTS, 0, nvertices );    // draw a point at each vertex location
+	glDrawArrays( GL_LINE_LOOP, 0, 4 );
+	glDrawArrays(GL_LINE_LOOP, 4, 10);
+	glDrawArrays(GL_TRIANGLE_STRIP, 14, 4);
     glFlush();					// ensure that all commands are pushed through the pipeline
 }
 
@@ -208,12 +227,17 @@ keyboard_callback( unsigned char key, int x, int y )
     }
 }
 
+void mouse_callback(int button, int state, int x, int y) {
+
+}
+
 //----------------------------------------------------------------------------
 
 int
 main( int argc, char **argv )
 {
     glutInit( &argc, argv );
+	glutInitWindowSize(600, 600);
     glutCreateWindow( "Basic Test" );
 	glewExperimental = true;
 	glewInit();
@@ -222,6 +246,7 @@ main( int argc, char **argv )
 	
     glutDisplayFunc( display_callback );
     glutKeyboardFunc( keyboard_callback );
+	glutMouseFunc(mouse_callback);
 
 	
 	
