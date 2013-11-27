@@ -13,8 +13,8 @@
 
 #define PI 3.14159265
 
-#define WINDOW_HEIGHT 300
-#define WINDOW_WIDTH 300
+#define WINDOW_HEIGHT 400
+#define WINDOW_WIDTH 400
 
 
 typedef struct {
@@ -25,7 +25,7 @@ typedef struct {
 	float r, g, b;
 } FloatType3D;
 
-const int nvertices = 4;
+const int nvertices = 5;
 GLint m_location;
 float M[16] = { 1, 0, 0, 0,  // 1, 0, 0, 0
                 0, 1, 0, 0,  // 0, 1, 0, 0
@@ -51,17 +51,16 @@ int s_key = 0;
 
 
 float angle = 1.0;
-float trans = 0.008;
+float trans = 0.01;
 float translation_x = 0, translation_y = 0;
 
 float mouse_start_pos_x = 0;
 float mouse_start_pos_y = 0;
 
 void M_Reset() {
-	M[0] = 1;
-	M[1] = 0;
-	M[4] = 0;
-	M[5] = 1;
+	M[0] = 1;  M[1] = 0;
+	M[4] = 0;  M[5] = 1;
+	M[8] = 0;  M[9] = 0;
 }
 
 
@@ -203,22 +202,24 @@ void
 init( void )
 {
 	FloatType2D vertices[nvertices];
-	FloatType3D colors[4];
+	FloatType3D colors[nvertices];
 	GLuint vao[1], buffer, location, colorBuffer, color, program;
 	
 
 	// A hard-coded, simple object to look at
 	vertices[0].x = -0.5;  vertices[0].y = -0.5;  vertices[0].z = 1;
-	vertices[1].x = 0.5;   vertices[1].y = -0.5;  vertices[1].z = 1;
-	vertices[2].x = 0.5;   vertices[2].y = 0.5;   vertices[2].z = 1;
+	vertices[1].x = 0.5;   vertices[1].y = -0.6;  vertices[1].z = 1;
+	vertices[2].x = 0.5;   vertices[2].y = 0.6;   vertices[2].z = 1;
 	vertices[3].x = -0.5;  vertices[3].y = 0.5;   vertices[3].z = 1;
+	vertices[4].x = -0.7;  vertices[4].y = 0.2;   vertices[4].z = 1;
 
 
 
-	colors[0].r = 1.0; colors[0].g = 0; colors[0].b = 0;
-	colors[1].r = 1; colors[1].g = 0; colors[1].b = 0;
-	colors[2].r = 0; colors[2].g = 0; colors[2].b = 1;
-    colors[3].r = 0;   colors[3].g = 0; colors[3].b = 1;
+	colors[0].r = 0;     colors[0].g = 0.75; colors[0].b = 0.75;
+	colors[1].r = 0;     colors[1].g = 1;    colors[1].b = 0;
+	colors[2].r = 1;     colors[2].g = 0;    colors[2].b = 0;
+    colors[3].r = 0.75;  colors[3].g = 0;    colors[3].b = 0.75;
+	colors[4].r = 0;     colors[4].g = 0;    colors[4].b = 1;
 
 	// Create a vertex array object
     glGenVertexArrays( 1, vao );
@@ -274,7 +275,7 @@ display_callback( void )
 	M[9] = translation_y;
 
 	glUniformMatrix4fv(m_location, 1, GL_FALSE, M);
-	glDrawArrays( GL_TRIANGLE_FAN, 0, 4 );
+	glDrawArrays( GL_TRIANGLE_FAN, 0, nvertices );
 	glFlush();					// ensure that all commands are pushed through the pipeline
 }
 
@@ -352,7 +353,7 @@ void mouse_motion(int x, int y) {
 		//printf("Motion %i %i\n", x, y);
 		if (mouse_start_pos_x < x)
 			angle--;
-		else
+		else if (mouse_start_pos_x > x)
 			angle++;
 		
 		R[0] = cosf(angle * PI / 180);
