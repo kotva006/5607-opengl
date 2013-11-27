@@ -11,9 +11,14 @@
 #define DEBUG_ON 0
 #define BUFFER_OFFSET(bytes) ((GLvoid*) (bytes))
 
+#define PI 3.14159265
+
+#define WINDOW_HEIGHT 300
+#define WINDOW_WIDTH 300
+
 
 typedef struct {
-	float x, y;
+	float x, y, z;
 } FloatType2D;
 
 typedef struct {
@@ -26,10 +31,39 @@ float M[16] = { 1, 0, 0, 0,  // 1, 0, 0, 0
                 0, 1, 0, 0,  // 0, 1, 0, 0
                 0, 0, 1, 0,  // 0, 0, 1, 0
                 0, 0, 0, 1 };// 0, 0, 0, 1
-//const int starvertices = 10;
+
+float R[16] = { 1, 0, 0, 0,
+                0, 1, 0, 0,
+                0, 0, 1, 0,
+                0, 0, 0, 1 };
+
+float T[16] = { 1, 0, 0, 0,
+                0, 1, 0, 0,
+                0, 0, 1, 0,
+                0, 0, 0, 1 };
+
 
 float x_scale = 1, y_scale = 1;
 float scale = 0.1;
+
+bool l_state = false, r_state = false;
+int s_key = 0;
+
+
+float angle = 1.0;
+float trans = 0.008;
+float translation_x = 0, translation_y = 0;
+
+float mouse_start_pos_x = 0;
+float mouse_start_pos_y = 0;
+
+void M_Reset() {
+	M[0] = 1;
+	M[1] = 0;
+	M[4] = 0;
+	M[5] = 1;
+}
+
 
 
 // Create a NULL-terminated string by reading the provided file
@@ -174,10 +208,10 @@ init( void )
 	
 
 	// A hard-coded, simple object to look at
-	vertices[0].x = -0.5;  vertices[0].y = -0.5;
-	vertices[1].x =  0.5;  vertices[1].y = -0.5;
-	vertices[2].x =  0.5;  vertices[2].y =  0.5;
-	vertices[3].x = -0.5;  vertices[3].y =  0.5;
+	vertices[0].x = -0.5;  vertices[0].y = -0.5;  vertices[0].z = 1;
+	vertices[1].x = 0.5;   vertices[1].y = -0.5;  vertices[1].z = 1;
+	vertices[2].x = 0.5;   vertices[2].y = 0.5;   vertices[2].z = 1;
+	vertices[3].x = -0.5;  vertices[3].y = 0.5;   vertices[3].z = 1;
 
 
 
@@ -204,7 +238,7 @@ init( void )
     // Initialize the vertex position attribute from the vertex shader
 	location = glGetAttribLocation( program, "vertex_position" );
     glEnableVertexAttribArray( location );
-    glVertexAttribPointer( location, 2, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0) );
+    glVertexAttribPointer( location, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0) );
 	
 	color = glGetAttribLocation(program, "vertex_color");
 	glEnableVertexAttribArray(color);
@@ -223,8 +257,21 @@ display_callback( void )
 {
 	glClear( GL_COLOR_BUFFER_BIT );     // fill the window with the background color
 
+	M_Reset();
+
+	//Set the scaleing
 	M[0] = x_scale;
 	M[5] = y_scale;
+
+	//Set the rotation
+	M[0] = x_scale * R[0];
+	M[1] = x_scale * R[1];
+	M[4] = y_scale * R[4];
+	M[5] = y_scale * R[5];
+
+	//Translation
+	M[8] = translation_x;
+	M[9] = translation_y;
 
 	glUniformMatrix4fv(m_location, 1, GL_FALSE, M);
 	glDrawArrays( GL_TRIANGLE_FAN, 0, 4 );
@@ -236,7 +283,7 @@ display_callback( void )
 void
 keyboard_callback( unsigned char key, int x, int y )
 {
-	fprintf(stdout, "Keypressed %i", key);
+	printf("Keypressed %i", key);
     switch ( key ) {
 
 		case 033:  // octal ascii code for ESC
@@ -244,19 +291,96 @@ keyboard_callback( unsigned char key, int x, int y )
 		case 'Q':
 			exit( 0 );
 			break;
-		case GLUT_KEY_LEFT:
-			x_scale += scale;
-			break;
-		case GLUT_KEY_RIGHT:
-			x_scale -= scale;
-			
-			break;
     }
 
 	glutPostRedisplay();
 }
 
+void
+key_callback(int key, int x, int y)
+{
+	//printf("Keypressed %i", key);
+	switch (key) {
+
+	case GLUT_KEY_LEFT:
+		x_scale -= scale;
+		break;
+	case GLUT_KEY_RIGHT:
+		x_scale += scale;
+		break;
+	case GLUT_KEY_UP:
+		y_scale += scale;
+		break;
+	case GLUT_KEY_DOWN:
+		y_scale -= scale;
+		break;
+	}
+
+	glutPostRedisplay();
+}
+
 void mouse_callback(int button, int state, int x, int y) {
+
+	switch (button) {
+
+	case GLUT_RIGHT_BUTTON:
+		if (state == GLUT_DOWN)
+			r_state = true;
+		if (state == GLUT_UP)
+			r_state = false;
+		break;
+	case GLUT_LEFT_BUTTON:
+		if (state == GLUT_DOWN) {
+			l_state = true;
+			mouse_start_pos_x = x;
+			mouse_start_pos_y = y;
+		}
+		if (state == GLUT_UP)
+			l_state = false;
+		break;
+	}
+
+	s_key = glutGetModifiers();
+
+	glutPostRedisplay();
+
+}
+
+void mouse_motion(int x, int y) {
+
+	if (l_state && s_key != GLUT_ACTIVE_ALT) {
+		//printf("Motion %i %i\n", x, y);
+		if (mouse_start_pos_x < x)
+			angle--;
+		else
+			angle++;
+		
+		R[0] = cosf(angle * PI / 180);
+		R[1] = sinf(angle * PI / 180);
+		R[5] = cosf(angle * PI / 180);
+		R[4] = -sinf(angle * PI / 180);
+
+		mouse_start_pos_x = x;
+		mouse_start_pos_y = y;
+	}
+	else if (l_state && s_key == GLUT_ACTIVE_ALT) {
+		
+		if (mouse_start_pos_x < x)
+			translation_x += trans;
+		else if (mouse_start_pos_x > x)
+			translation_x -= trans;
+
+		if (mouse_start_pos_y < y)
+			translation_y -= trans;
+		else if (mouse_start_pos_y > y)
+			translation_y += trans;
+
+		mouse_start_pos_x = x;
+		mouse_start_pos_y = y;
+
+	}
+
+	glutPostRedisplay();
 
 }
 
@@ -266,8 +390,8 @@ int
 main( int argc, char **argv )
 {
     glutInit( &argc, argv );
-	glutInitWindowSize(200, 200);
-    glutCreateWindow( "Basic Test 2" );
+	glutInitWindowSize(WINDOW_WIDTH, WINDOW_HEIGHT);
+    glutCreateWindow( "Image Transformer Beta" );
 	glewExperimental = true;
 	glewInit();
 	
@@ -275,7 +399,9 @@ main( int argc, char **argv )
 	
     glutDisplayFunc( display_callback );
     glutKeyboardFunc( keyboard_callback );
+	glutSpecialFunc(key_callback);
 	glutMouseFunc(mouse_callback);
+	glutMotionFunc(mouse_motion);
 
 	
 	
