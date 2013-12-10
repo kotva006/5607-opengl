@@ -41,8 +41,37 @@ void mul(float *R1, float *R2, float *ret) {
 
 }
 
+float dot(float *R1, float *R2) {
+	return R1[0] * R2[0] + R1[1] * R2[1] + R1[2] * R2[2];
+}
+
+void cross(float *a, float *b, float *R) {
+	R[0] = a[1] * b[2] - a[2] * b[1];
+	R[1] = a[2] * b[0] - a[0] * b[2];
+	R[2] = a[0] * b[1] - a[1] * b[0];
+}
+
+void norm(float *R) {
+	float len = sqrt(pow(R[0], 2) + pow(R[1], 2) + pow(R[2], 2));
+	R[0] = R[0] / len;
+	R[1] = R[1] / len;
+	R[2] = R[2] / len;
+}
+
+void neg(float *R) {
+	R[0] = -R[0];
+	R[1] = -R[1];
+	R[2] = -R[2];
+}
+
+float eye[3] = { 0, 0, 0 };
+float up[3] = { 0, 1, 0 };
+float u[3] = { 0, 0, 1 };
+float v[3] = { 0, 0, 1 };
+float n[3] = { 0, 0, 1 }; // Set to view_dir
+
 const int nvertices = 8;
-GLint m_location;
+GLint m_location, v_location;
 float M[16] = { 1, 0, 0, 0,  // 1, 0, 0, 0
                 0, 1, 0, 0,  // 0, 1, 0, 0
                 0, 0, 1, 0,  // 0, 0, 1, 0
@@ -88,15 +117,19 @@ float R[16] = { 1, 0, 0, 0,
                 0, 0, 1, 0,
                 0, 0, 0, 1 };
 
+float V[16] = { 1, 0, 0, 0,
+                0, 1, 0, 0,
+                0, 0, 1, 0,
+                0, 0, 0, 1 };
 
-float x_scale = 1, y_scale = 1;
-float scale = 0.1;
+float scale = 0.4;
+
+float costheta = cos(PI / 60);
+float sintheta = sin(PI / 60);
 
 bool l_state = false, r_state = false;
 int s_key = 0;
 
-
-float angle = 1.0;
 float trans = 0.012;
 float translation_x = 0, translation_y = 0;
 
@@ -263,6 +296,18 @@ init( void )
 	colors[7].r = 0;     colors[7].g = 1;    colors[7].b = 0;
 
 	glEnable(GL_DEPTH_TEST);
+
+	norm(n);
+	neg(n);
+	cross(up, n, u);
+	cross(n, u, v);
+
+    // U             V                 N      
+	V[0] = u[0]; V[1] = v[0]; V[2] = n[0];
+	V[4] = u[1]; V[5] = v[1]; V[6] = n[1];
+	V[8] = u[2]; V[9] = v[2]; V[10] = n[2];
+
+	V[12] = -1*dot(eye, u); V[13] = -1*dot(eye, v); V[14] = -1*dot(eye, n);
 	
 	// Create a vertex array object
     glGenVertexArrays( 1, vao );
@@ -289,6 +334,7 @@ init( void )
 	glVertexAttribPointer(color, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(sizeof(vertices) ));
 
 	m_location = glGetUniformLocation(program, "M");
+	v_location = glGetUniformLocation(program, "V");
 
     glClearColor( 0.3, 0.3, 0.3, 1 );
 	
@@ -302,16 +348,6 @@ display_callback( void )
 {
 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);     // fill the window with the background color
 
-	//Set the scaleing
-	//M[0] = x_scale;
-	//M[5] = y_scale;
-
-	//Set the rotation
-	//M[0] = x_scale * Rx[0];
-	//M[1] = x_scale * Rx[1];
-	//M[4] = y_scale * Rx[4];
-	//M[5] = y_scale * Rx[5];
-
 	mul(T, R, M);
 
 	glLineWidth(5.0);
@@ -321,6 +357,7 @@ display_callback( void )
 	M[13] = translation_y;
 
 	glUniformMatrix4fv(m_location, 1, GL_FALSE, M);
+	glUniformMatrix4fv(v_location, 1, GL_FALSE, V);
 	glDrawArrays( GL_TRIANGLE_FAN, 0, nvertices );
 	glFlush();					// ensure that all commands are pushed through the pipeline
 	glutSwapBuffers();
@@ -348,22 +385,38 @@ void
 key_callback(int key, int x, int y)
 {
 	//printf("Keypressed %i", key);
+	float old[3];
+	old[0] = n[0]; old[1] = n[1]; old[2] = n[2];
 	switch (key) {
 
 	case GLUT_KEY_LEFT:
-		x_scale -= scale;
+		n[0] = costheta * old[0] + sintheta * old[2];
+		n[2] = costheta * old[2] + sintheta * old[0];
+		norm(n);
+		
 		break;
 	case GLUT_KEY_RIGHT:
-		x_scale += scale;
+		n[0] = costheta * old[0] - sintheta * old[2];
+		n[2] = costheta * old[2] - sintheta * old[0];
+		norm(n);
+		
 		break;
 	case GLUT_KEY_UP:
-		y_scale += scale;
+		eye[2] -= scale;
 		break;
 	case GLUT_KEY_DOWN:
-		y_scale -= scale;
+		eye[2] += scale;
 		break;
 	}
+	cross(up, n, u);
+	cross(n, u, v);
 
+	// U             V                 N      
+	V[0] = u[0]; V[1] = v[0]; V[2] = n[0];
+	V[4] = u[1]; V[5] = v[1]; V[6] = n[1];
+	V[8] = u[2]; V[9] = v[2]; V[10] = n[2];
+
+	V[12] = -1 * dot(eye, u); V[13] = -1 * dot(eye, v); V[14] = -1 * dot(eye, n);
 	glutPostRedisplay();
 }
 
