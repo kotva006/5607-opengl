@@ -139,8 +139,8 @@ float left  = -1;
 float right = 1;
 float dnear = 4;
 float dfar  = 20;
-float top   = 2;
-float bot   = -2;
+float top   = 1;
+float bot   = -1;
 
 float scale = 0.1;
 
@@ -526,8 +526,6 @@ void mouse_motion(int x, int y) {
 
 }
 
-float old_aspect,old_width,old_height;
-
 void reshape_callback(int width, int height) {
 
 	glViewport(0, 0, width, height);
@@ -538,22 +536,18 @@ void reshape_callback(int width, int height) {
 
 	float aspect = float(width) / float(height);
 
-	if (width< old_width || height > old_height) {
-		bot = temp_bot / aspect;
-		top = temp_top / aspect;
+	if (aspect < 1) {
+		temp_bot = bot / aspect;
+		temp_top = top / aspect;
 	}
-	if (width > old_width || height < old_height) {
-		left = temp_left * aspect;
-		right = temp_right * aspect;
+	if (aspect > 1) {
+		temp_left = left * aspect;
+		temp_right = right * aspect;
 	}
 
-	old_width = width;
-	old_height = height;
-	P[0] = (2 * dnear) / (right - left); P[5] = (2 * dnear) / (top - bot);
-	P[8] = (right + left) / (right - left); P[9] = (top + bot) / (top - bot);
-	//P[10] = -1 * (dfar + dnear) / (dfar - dnear); P[11] = -1;
-	//P[14] = (-2 * dfar*dnear) / (dfar - dnear);
-	
+	P[0] = (2 * dnear) / (temp_right - temp_left); P[5] = (2 * dnear) / (temp_top - temp_bot);
+	P[8] = (temp_right + temp_left) / (temp_right - temp_left); P[9] = (temp_top + temp_bot) / (temp_top - temp_bot);
+
 	glutPostRedisplay();
 
 }
@@ -566,7 +560,7 @@ main( int argc, char **argv )
     glutInit( &argc, argv );
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_DEPTH);
 	glutInitWindowSize(WINDOW_WIDTH, WINDOW_HEIGHT);
-    glutCreateWindow( "Image Transformer Beta" );
+    glutCreateWindow( "3D Image Explorer Beta" );
 	glewExperimental = true;
 	glewInit();
 	
