@@ -18,7 +18,7 @@
 #define ANG 1 * PI / 180
 
 typedef struct {
-	float x, y, z, w;
+	float x, y, z;// , w;
 } FloatType4D;
 
 typedef struct {
@@ -27,19 +27,26 @@ typedef struct {
 
 void mul(float *R1, float *R2, float *ret) {
 
-	ret[0] = R1[0] * R2[0] + R1[4] * R2[1] + R1[8] * R2[2];
-	ret[4] = R1[0] * R2[4] + R1[4] * R2[5] + R1[8] * R2[6];
-	ret[8] = R1[0] * R2[8] + R1[4] * R2[9] + R1[8] * R2[10];
+	float t[16];
 
-	ret[1] = R1[1] * R2[0] + R1[5] * R2[1] + R1[9] * R2[2];
-	ret[5] = R1[1] * R2[4] + R1[5] * R2[5] + R1[9] * R2[6];
-	ret[9] = R1[1] * R2[8] + R1[5] * R2[9] + R1[9] * R2[10];
+	t[0] = R2[0];  t[1] = R2[1];    t[2] = R2[2];   t[3] = R2[3];
+	t[4] = R2[4];  t[5] = R2[5];    t[6] = R2[6];   t[7] = R2[7];
+	t[8] = R2[8];  t[9] = R2[9];    t[10] = R2[10]; 
 
-	ret[3] = R1[2] * R2[0] + R1[6] * R2[1] + R1[10] * R2[2];
-	ret[6] = R1[2] * R2[4] + R1[6] * R2[5] + R1[10] * R2[6];
-	ret[10] = R1[2] * R2[8] + R1[6] * R2[9] + R1[10] * R2[10];
+	ret[0] = R1[0] * t[0] + R1[4] * t[1] + R1[8] * t[2];
+	ret[4] = R1[0] * t[4] + R1[4] * t[5] + R1[8] * t[6];
+	ret[8] = R1[0] * t[8] + R1[4] * t[9] + R1[8] * t[10];
+
+	ret[1] = R1[1] * t[0] + R1[5] * t[1] + R1[9] * t[2];
+	ret[5] = R1[1] * t[4] + R1[5] * t[5] + R1[9] * t[6];
+	ret[9] = R1[1] * t[8] + R1[5] * t[9] + R1[9] * t[10];
+
+	ret[2] = R1[2] * t[0] + R1[6] * t[1] + R1[10] * t[2];
+	ret[6] = R1[2] * t[4] + R1[6] * t[5] + R1[10] * t[6];
+	ret[10] = R1[2] * t[8] + R1[6] * t[9] + R1[10] * t[10];
 
 }
+
 
 float dot(float *R1, float *R2) {
 	return R1[0] * R2[0] + R1[1] * R2[1] + R1[2] * R2[2];
@@ -59,19 +66,20 @@ void norm(float *R) {
 }
 
 void neg(float *R) {
-	R[0] = -R[0];
-	R[1] = -R[1];
-	R[2] = -R[2];
+	R[0] = -1 * R[0];
+	R[1] = -1 * R[1];
+	R[2] = -1 * R[2];
 }
 
-float eye[3] = { 0, 0, 0 };
+float eye[3] = { 0, 0, -5 };
 float up[3] = { 0, 1, 0 };
 float u[3] = { 0, 0, 1 };
 float v[3] = { 0, 0, 1 };
 float n[3] = { 0, 0, 1 }; // Set to view_dir
 
 const int nvertices = 8;
-GLint m_location, v_location;
+GLint m_location, v_location, p_location;
+
 float M[16] = { 1, 0, 0, 0,  // 1, 0, 0, 0
                 0, 1, 0, 0,  // 0, 1, 0, 0
                 0, 0, 1, 0,  // 0, 0, 1, 0
@@ -122,10 +130,22 @@ float V[16] = { 1, 0, 0, 0,
                 0, 0, 1, 0,
                 0, 0, 0, 1 };
 
-float scale = 0.4;
+float P[16] = { 0, 0, 0, 0,
+                0, 0, 0, 0,
+                0, 0, 0, 0,
+                0, 0, 0, 0 };
 
-float costheta = cos(PI / 60);
-float sintheta = sin(PI / 60);
+float left  = -1;
+float right = 1;
+float dnear = 4;
+float dfar  = 20;
+float top   = 2;
+float bot   = -2;
+
+float scale = 0.1;
+
+float costheta = cos(PI / 90);
+float sintheta = sin(PI / 90);
 
 bool l_state = false, r_state = false;
 int s_key = 0;
@@ -277,14 +297,14 @@ init( void )
 	GLuint vao[1], buffer, location, colorBuffer, color, program;
 	
 	// A hard-coded, simple object to look at
-	vertices[0].x = -0.5;  vertices[0].y = -0.5;  vertices[0].z = -0.5;  vertices[0].w = 1;
-	vertices[1].x = -0.5;  vertices[1].y = -0.5;  vertices[1].z = 0.5;   vertices[1].w = 1;
-	vertices[2].x = 0.5;   vertices[2].y = -0.5;  vertices[2].z = 0.5;   vertices[2].w = 1;
-	vertices[3].x = 0.5;   vertices[3].y = -0.5;  vertices[3].z = -0.5;  vertices[3].w = 1;
-	vertices[4].x = 0.5;   vertices[4].y = 0.5;   vertices[4].z = -0.5;  vertices[4].w = 1;
-	vertices[5].x = 0.5;   vertices[5].y = 0.5;   vertices[5].z = 0.5;   vertices[5].w = 1;
-	vertices[6].x = -0.5;  vertices[6].y = 0.5;   vertices[6].z = 0.5;   vertices[6].w = 1;
-	vertices[7].x = -0.5;  vertices[7].y = 0.5;   vertices[7].z = -0.5;  vertices[7].w = 1;
+	vertices[0].x = -0.5;  vertices[0].y = -0.5;  vertices[0].z = -0.5;  //vertices[0].w = 1;
+	vertices[1].x = -0.5;  vertices[1].y = -0.5;  vertices[1].z = 0.5;   //vertices[1].w = 1;
+	vertices[2].x = 0.5;   vertices[2].y = -0.5;  vertices[2].z = 0.5;   //vertices[2].w = 1;
+	vertices[3].x = 0.5;   vertices[3].y = -0.5;  vertices[3].z = -0.5;  //vertices[3].w = 1;
+	vertices[4].x = 0.5;   vertices[4].y = 0.5;   vertices[4].z = -0.5;  //vertices[4].w = 1;
+	vertices[5].x = 0.5;   vertices[5].y = 0.5;   vertices[5].z = 0.5;   //vertices[5].w = 1;
+	vertices[6].x = -0.5;  vertices[6].y = 0.5;   vertices[6].z = 0.5;   //vertices[6].w = 1;
+	vertices[7].x = -0.5;  vertices[7].y = 0.5;   vertices[7].z = -0.5;  //vertices[7].w = 1;
 
 	colors[0].r = 0;     colors[0].g = 0;    colors[0].b = 0;
 	colors[1].r = 0;     colors[1].g = 0;    colors[1].b = 1;
@@ -300,7 +320,9 @@ init( void )
 	norm(n);
 	neg(n);
 	cross(up, n, u);
+	norm(u);
 	cross(n, u, v);
+	norm(v);
 
     // U             V                 N      
 	V[0] = u[0]; V[1] = v[0]; V[2] = n[0];
@@ -308,6 +330,11 @@ init( void )
 	V[8] = u[2]; V[9] = v[2]; V[10] = n[2];
 
 	V[12] = -1*dot(eye, u); V[13] = -1*dot(eye, v); V[14] = -1*dot(eye, n);
+
+	P[0] = (2 * dnear) / (right - left); P[5] = (2 * dnear) / (top - bot);
+	P[8] = (right + left) / (right - left); P[9] = (top + bot) / (top - bot);
+	P[10] = -1 * (dfar + dnear) / (dfar - dnear); P[11] = -1;
+	P[14] = (-2 * dfar*dnear) / (dfar - dnear);
 	
 	// Create a vertex array object
     glGenVertexArrays( 1, vao );
@@ -327,7 +354,7 @@ init( void )
     // Initialize the vertex position attribute from the vertex shader
 	location = glGetAttribLocation( program, "vertex_position" );
     glEnableVertexAttribArray( location );
-    glVertexAttribPointer( location, 4, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0) );
+    glVertexAttribPointer( location, 3, GL_FLOAT, GL_FALSE, 0, BUFFER_OFFSET(0) );
 	
 	color = glGetAttribLocation(program, "vertex_color");
 	glEnableVertexAttribArray(color);
@@ -335,6 +362,7 @@ init( void )
 
 	m_location = glGetUniformLocation(program, "M");
 	v_location = glGetUniformLocation(program, "V");
+	p_location = glGetUniformLocation(program, "P");
 
     glClearColor( 0.3, 0.3, 0.3, 1 );
 	
@@ -348,9 +376,11 @@ display_callback( void )
 {
 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);     // fill the window with the background color
 
-	mul(T, R, M);
+	
 
 	glLineWidth(5.0);
+
+	mul(T, R, M);
 
 	//Translation
 	M[12] = translation_x;
@@ -358,6 +388,7 @@ display_callback( void )
 
 	glUniformMatrix4fv(m_location, 1, GL_FALSE, M);
 	glUniformMatrix4fv(v_location, 1, GL_FALSE, V);
+	glUniformMatrix4fv(p_location, 1, GL_FALSE, P);
 	glDrawArrays( GL_TRIANGLE_FAN, 0, nvertices );
 	glFlush();					// ensure that all commands are pushed through the pipeline
 	glutSwapBuffers();
@@ -391,25 +422,27 @@ key_callback(int key, int x, int y)
 
 	case GLUT_KEY_LEFT:
 		n[0] = costheta * old[0] + sintheta * old[2];
-		n[2] = costheta * old[2] + sintheta * old[0];
+		n[2] = costheta * old[2] - sintheta * old[0];
 		norm(n);
-		
 		break;
 	case GLUT_KEY_RIGHT:
 		n[0] = costheta * old[0] - sintheta * old[2];
-		n[2] = costheta * old[2] - sintheta * old[0];
+		n[2] = costheta * old[2] + sintheta * old[0];
 		norm(n);
-		
 		break;
 	case GLUT_KEY_UP:
-		eye[2] -= scale;
+		eye[2] += scale;
+		//fprintf(stdout, "EYE: %f, %f, %f\n", eye[0], eye[1], eye[2]);
 		break;
 	case GLUT_KEY_DOWN:
-		eye[2] += scale;
+		eye[2] -= scale;
+		//fprintf(stdout, "EYE: %f, %f, %f\n", eye[0], eye[1], eye[2]);
 		break;
 	}
 	cross(up, n, u);
+	norm(u);
 	cross(n, u, v);
+	norm(v);
 
 	// U             V                 N      
 	V[0] = u[0]; V[1] = v[0]; V[2] = n[0];
@@ -452,18 +485,18 @@ void mouse_motion(int x, int y) {
 	if (l_state && s_key == GLUT_ACTIVE_CTRL) {
 		//printf("Motion %i %i\n", x, y);
 		if (m_s_p_x < x) {
-			mul(nRz, R, R);
+			mul(Rz, R, R);
 		}
 		else if (m_s_p_x > x) {
-			mul(Rz, R, R);
+			mul(nRz, R, R);
 		}
 	}
 	else if (l_state && s_key != GLUT_ACTIVE_ALT) {
 		if (m_s_p_x < x) {
-			mul(nRy, R, R);
+			mul(Ry, R, R);
 		}
 		else if (m_s_p_x > x) {
-			mul(Ry, R, R);
+			mul(nRy, R, R);
 		}
 		if (m_s_p_y < y) {
 			mul(nRx, R, R);
@@ -475,9 +508,9 @@ void mouse_motion(int x, int y) {
 	else if (l_state && s_key == GLUT_ACTIVE_ALT) {
 		
 		if (m_s_p_x < x)
-			translation_x += trans;
-		else if (m_s_p_x > x)
 			translation_x -= trans;
+		else if (m_s_p_x > x)
+			translation_x += trans;
 
 		if (m_s_p_y < y)
 			translation_y -= trans;
@@ -489,6 +522,38 @@ void mouse_motion(int x, int y) {
 	m_s_p_x = x;
 	m_s_p_y = y;
 
+	glutPostRedisplay();
+
+}
+
+float old_aspect,old_width,old_height;
+
+void reshape_callback(int width, int height) {
+
+	glViewport(0, 0, width, height);
+
+	float temp_right = right; float temp_left = left;
+	float temp_top   = top;   float temp_bot  = bot;
+	//float temp_dnear = dnear; float temp_dfar = dfar;
+
+	float aspect = float(width) / float(height);
+
+	if (width< old_width || height > old_height) {
+		bot = temp_bot / aspect;
+		top = temp_top / aspect;
+	}
+	if (width > old_width || height < old_height) {
+		left = temp_left * aspect;
+		right = temp_right * aspect;
+	}
+
+	old_width = width;
+	old_height = height;
+	P[0] = (2 * dnear) / (right - left); P[5] = (2 * dnear) / (top - bot);
+	P[8] = (right + left) / (right - left); P[9] = (top + bot) / (top - bot);
+	//P[10] = -1 * (dfar + dnear) / (dfar - dnear); P[11] = -1;
+	//P[14] = (-2 * dfar*dnear) / (dfar - dnear);
+	
 	glutPostRedisplay();
 
 }
@@ -512,7 +577,7 @@ main( int argc, char **argv )
 	glutSpecialFunc(key_callback);
 	glutMouseFunc(mouse_callback);
 	glutMotionFunc(mouse_motion);
-	
+	glutReshapeFunc(reshape_callback);
     glutMainLoop();
 
     return 0;
